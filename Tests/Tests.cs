@@ -1393,6 +1393,39 @@ Order by p.Id";
             Zero = 0, One = 1, Two = 2, Three = 3, Four = 4, Five = 5, Six = 6
         }
 
+        public class BillingAddress
+        {
+            [Mapping("First_Name")]
+            public string FirstName { get; set; }
+
+            [Mapping(DbName = "Last_Name")]
+            public string LastName = null;
+
+            public int Age { get; set; }
+        }
+
+        public void TestMappingDbName()
+        {
+            var createSql = @"
+                create table #BillingAddress (First_Name varchar(20), Last_Name varchar(20), Age int)
+
+                insert #BillingAddress values('Steven', 'Zhang', 30)";
+
+            connection.Execute(createSql);
+
+            var sql = @"SELECT * FROM #BillingAddress";
+
+            var billingAddress = connection.Query<BillingAddress>(sql).FirstOrDefault();
+
+            Assert.IsTrue(billingAddress != null);
+
+            Assert.IsEqualTo<string>("Steven", billingAddress.FirstName);
+            Assert.IsEqualTo<string>("Zhang", billingAddress.LastName);
+            Assert.IsEqualTo<int>(30, billingAddress.Age);
+
+            connection.Execute("drop table #BillingAddress");
+        }
+
 #if POSTGRESQL
 
         class Cat

@@ -1437,7 +1437,7 @@ this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TRetu
                   .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                   .Select(p => new PropInfo
                   {
-                      Name = p.Name,
+                      Name = p.GetMappingName(),
                       Setter = p.DeclaringType == t ? 
                         p.GetSetMethod(true) : 
                         p.DeclaringType.GetProperty(p.Name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).GetSetMethod(true),
@@ -1500,8 +1500,8 @@ this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TRetu
                             from n in names
                             let prop = properties.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.Ordinal)) // property case sensitive first
                                   ?? properties.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase)) // property case insensitive second
-                            let field = prop != null ? null : (fields.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.Ordinal)) // field case sensitive third
-                                ?? fields.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase))) // field case insensitive fourth
+                            let field = prop != null ? null : (fields.FirstOrDefault(p => string.Equals(p.GetMappingName(), n, StringComparison.Ordinal)) // field case sensitive third
+                                ?? fields.FirstOrDefault(p => string.Equals(p.GetMappingName(), n, StringComparison.OrdinalIgnoreCase))) // field case insensitive fourth
                             select new { Name = n, Property = prop, Field = field }
                           ).ToList();
 
@@ -1949,6 +1949,55 @@ this IDbConnection cnn, string sql, Func<TFirst, TSecond, TThird, TFourth, TRetu
                 }
             }
         }
+
+        private static string GetMappingName(this PropertyInfo p)
+        {
+            return InternalGetMappingName(p);
+        }
+
+        private static string GetMappingName(this FieldInfo p)
+        {
+            return InternalGetMappingName(p);
+        }
+
+        private static string InternalGetMappingName(MemberInfo p)
+        {
+            var attr = p.GetCustomAttributes(typeof(MappingAttribute), true).FirstOrDefault() as MappingAttribute;
+
+            if (attr != null)
+            {
+                if (!string.IsNullOrEmpty(attr.DbName))
+                    return attr.DbName;
+            }
+
+            return p.Name;
+        }
+    }
+
+    /// <summary>
+    /// Map DbName for the properties and fields when their names are different from the names in database
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+    public class MappingAttribute : Attribute
+    {
+        /// <summary>
+        /// Construct Mapping attribute
+        /// </summary>
+        public MappingAttribute() { }
+
+        /// <summary>
+        /// Construct Mapping attribute with dbName specified
+        /// </summary>
+        /// <param name="dbName"></param>
+        public MappingAttribute(string dbName)
+        {
+            this.DbName = dbName;
+        }
+
+        /// <summary>
+        /// The table column name in database
+        /// </summary>
+        public string DbName { get; set; }
     }
 
     /// <summary>
